@@ -31,7 +31,9 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
         outputs = model(samples)
-        print(outputs['pred_boxes'])
+        # print(outputs['pred_boxes'])
+        # print(targets[0].keys())   # dict_keys(['boxes', 'labels', 'image_id', 'area', 'iscrowd', 'orig_size', 'size'])
+        # print(targets[0]['boxes'].shape, targets[0]['orig_size'], targets[0]['size'])
         loss_dict = criterion(outputs, targets)
         weight_dict = criterion.weight_dict
         losses = sum(loss_dict[k] * weight_dict[k] for k in loss_dict.keys() if k in weight_dict)

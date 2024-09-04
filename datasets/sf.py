@@ -7,7 +7,8 @@ from keras.utils import to_categorical
 from torch.utils.data import Dataset
 from torchvision.transforms import transforms
 import torch
-
+from pathlib import Path
+from .coco import make_coco_transforms
 
 class SmartFarm(Dataset):
     def __init__(self, path, image_set='train', transform=None, n_cls=1):
@@ -32,7 +33,13 @@ class SmartFarm(Dataset):
     def __getitem__(self, index):
         idx = self.ids[index]
         img, target = self.read_json(self.json_path, idx)
-        img = transforms.ToTensor()(img)
+        # img = transforms.ToTensor()(img)
+        if self.transform is not None:
+            img, target = self.transform(img, target)
+        if target['boxes'].shape[0] == 0:
+            print('false')
+        else:
+            print('true')
         return img, target
 
     def label2id(self):
@@ -65,6 +72,10 @@ class SmartFarm(Dataset):
                     area.append(ann['area'])
                     iscrowd.append(ann['iscrowd'])
             bboxes = torch.as_tensor(bboxes, dtype=torch.float32)
+            tmp = bboxes.reshape(-1, 2, 2)
+            left_corner = tmp[:, 0]
+            right_corner = tmp[:, 0] + tmp[:, 1]
+            bboxes = torch.cat((left_corner, right_corner), dim=-1)
             classes = torch.as_tensor(classes, dtype=torch.int64)
             area = torch.as_tensor(area, dtype=torch.float32)
             iscrowd = torch.as_tensor(iscrowd)
@@ -81,6 +92,11 @@ class SmartFarm(Dataset):
 
             return image, target
 
+def build(image_set, args):
+    path = Path(args.other_dataset_path)
+    assert path.exists(), f'provided SF path {path} does not exist'
+    dataset = SmartFarm(path, image_set, transform=make_coco_transforms(image_set))
+    return dataset
 
 if __name__ == '__main__':
     MyDataset = SmartFarm('/Users/shijunshen/Documents/Code/dataset/Smart_Farm_Detection.v1i.coco')

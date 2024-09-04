@@ -23,8 +23,8 @@ def build_dataset(image_set, args):
         from .coco_panoptic import build as build_coco_panoptic
         return build_coco_panoptic(image_set, args)
     if args.dataset_file == 'sf':
-        from .sf import SmartFarm
-        from .coco import make_coco_transforms
-        return SmartFarm(args.other_dataset_path, image_set, transform=make_coco_transforms(image_set))
+        from .sf import build
+
+        return build(image_set, args)
 
     raise ValueError(f'dataset {args.dataset_file} not supported')

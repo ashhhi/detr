@@ -156,3 +156,21 @@ def build(image_set, args):
     img_folder, ann_file = PATHS[image_set]
     dataset = CocoDetection(img_folder, ann_file, transforms=make_coco_transforms(image_set), return_masks=args.masks)
     return dataset
+
+
+if __name__ == '__main__':
+    test = {'boxes': torch.tensor([[321.0000, 64.0000, 37.2400, 35.7400],
+                      [82.0000, 94.0000, 39.3600, 32.2400],
+                      [101.0000, 15.0000, 44.1300, 28.2800],
+                      [114.0000, 133.0000, 38.5000, 40.7400],
+                      [168.0000, 57.0000, 25.4000, 26.9800],
+                      [266.0000, 92.0000, 30.0700, 31.2300],
+                      [181.0000, 169.0000, 30.5400, 31.4000],
+                      [114.0000, 226.0000, 38.9600, 32.4500],
+                      [185.0000, 238.0000, 34.4800, 34.5800],
+                      [399.0000, 147.0000, 36.4300, 29.5800]]), 'labels': torch.tensor([1, 1, 1, 1, 1, 1, 1, 1, 1, 1]),
+     'image_id': torch.tensor(9), 'area': torch.tensor([1330.9580, 1268.9659, 1247.9960, 1568.4900, 685.2920, 939.0860,
+                                            958.9560, 1264.2520, 1192.3180, 1077.5990]),
+     'iscrowd': torch.tensor([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]), 'orig_size': torch.tensor([320, 480]), 'size': torch.tensor([320, 480])}
+    print(test)
+    make_coco_transforms('train')(test)
