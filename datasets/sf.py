@@ -1,6 +1,8 @@
 import json
 import os
 from tkinter import Image
+
+import cv2
 from PIL import Image
 import numpy as np
 from keras.utils import to_categorical
@@ -36,10 +38,6 @@ class SmartFarm(Dataset):
         # img = transforms.ToTensor()(img)
         if self.transform is not None:
             img, target = self.transform(img, target)
-        if target['boxes'].shape[0] == 0:
-            print('false')
-        else:
-            print('true')
         return img, target
 
     def label2id(self):
@@ -87,6 +85,24 @@ class SmartFarm(Dataset):
             target["iscrowd"] = iscrowd
             image = Image.open(os.path.join(self.path, image_files[0]))
             w, h = image.size
+            # if idx==0:
+            #     img = cv2.imread(os.path.join(self.path, image_files[0]))
+            #     img = (img * 255).astype(np.uint8)
+            #     img_cv2 = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+            #     img_height, img_width, _ = img_cv2.shape
+            #     for box in bboxes:
+            #         cx = int(box[0])
+            #         cy = int(box[1])
+            #         w = int(box[2])
+            #         h = int(box[3])
+            #         print(cx, cy, w, h)
+            #         cv2.rectangle(img_cv2, (cx, cy), (w, h), (255, 0, 0), 2)
+            #     cv2.imshow('123', img_cv2)
+            #     cv2.waitKey(0)
+
+
+
+
             target["orig_size"] = torch.as_tensor([int(h), int(w)])
             target["size"] = torch.as_tensor([int(h), int(w)])
 

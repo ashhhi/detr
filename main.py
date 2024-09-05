@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader, DistributedSampler
 import datasets
 import util.misc as utils
 from datasets import build_dataset, get_coco_api_from_dataset
-from engine import evaluate, train_one_epoch
+from engine import evaluate, train_one_epoch, predict
 from models import build_model
 
 
@@ -21,7 +21,7 @@ def get_args_parser():
     parser = argparse.ArgumentParser('Set transformer detector', add_help=False)
     parser.add_argument('--lr', default=1e-4, type=float)
     parser.add_argument('--lr_backbone', default=1e-5, type=float)
-    parser.add_argument('--batch_size', default=1, type=int)
+    parser.add_argument('--batch_size', default=8, type=int)
     parser.add_argument('--weight_decay', default=1e-4, type=float)
     parser.add_argument('--epochs', default=300, type=int)
     parser.add_argument('--lr_drop', default=200, type=int)
@@ -94,6 +94,7 @@ def get_args_parser():
     parser.add_argument('--start_epoch', default=0, type=int, metavar='N',
                         help='start epoch')
     parser.add_argument('--eval', action='store_true')
+    parser.add_argument('--predict', default=True, action='store_true')
     parser.add_argument('--num_workers', default=1, type=int)
 
     # distributed training parameters
@@ -191,6 +192,12 @@ def main(args):
                                               data_loader_val, base_ds, device, args.output_dir)
         # if args.output_dir:
         #     utils.save_on_master(coco_evaluator.coco_eval["bbox"].eval, output_dir / "eval.pth")
+        return
+
+    if args.predict:
+        predict(model, criterion, postprocessors,
+                                              data_loader_val, base_ds, device, args.output_dir)
+
         return
 
     print("Start training")

@@ -7,7 +7,10 @@ import os
 import sys
 from typing import Iterable
 
+import cv2
+import numpy as np
 import torch
+from PIL.Image import Image
 
 import util.misc as utils
 from datasets.coco_eval import CocoEvaluator
@@ -158,3 +161,58 @@ def evaluate(model, criterion, postprocessors, data_loader, base_ds, device, out
         stats['PQ_th'] = panoptic_res["Things"]
         stats['PQ_st'] = panoptic_res["Stuff"]
     return stats, coco_evaluator
+
+
+
+@torch.no_grad()
+def predict(model, criterion, postprocessors, data_loader, base_ds, device, output_dir):
+    model.eval()
+    criterion.eval()
+
+    for samples, targets in data_loader:
+        samples = samples.to(device)
+        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+        outputs = model(samples)
+        # print(outputs)
+        idx = 2
+        # print(targets)
+        for i, tensor in enumerate(samples.tensors):
+            print(i, tensor)
+            if i==idx:
+                img = tensor
+                break
+
+        mean = [0.485, 0.456, 0.406]
+        std = [0.229, 0.224, 0.225]
+        img = img.cpu().clone().detach().numpy()
+        img = np.transpose(img, (1, 2, 0))
+        img = img * np.array(std) + np.array(mean)
+        img = np.clip(img, 0, 1)
+
+        img = (img * 255).astype(np.uint8)
+
+        img_cv2 = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)  # 将NumPy数组转换为OpenCV的Mat对象
+        bbox = outputs['pred_boxes'].cpu().detach().numpy()[idx]
+        # bbox = targets[idx]['boxes'].cpu().numpy()
+
+
+        img_height, img_width, _ = img_cv2.shape
+        [h, w] = targets[idx]['size']
+        [w_ratio, h_ratio] = targets[idx]['orig_size'] / targets[idx]['size']
+
+        for box in bbox:
+            print(box)
+            cx = int(box[0] * w)
+            cy = int(box[1] * h)
+            w_ = int(box[2] * w)
+            h_ = int(box[3] * h)
+            xmin = int(cx - w_ / 2)
+            ymin = int(cy - h_ / 2)
+            xmax = int(cx + w_ / 2)
+            ymax = int(cy + h_ / 2)
+            print(xmin, ymin, xmax, ymax)
+            cv2.rectangle(img_cv2, (xmin, ymin), (xmax, ymax), (255, 0, 0), 2)
+
+
+        cv2.imshow('test', img_cv2)
+        cv2.waitKey()
