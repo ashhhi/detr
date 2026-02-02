@@ -68,6 +68,7 @@ class DETR(nn.Module):
         outputs_class = self.class_embed(hs)
         # print(outputs_class.shape)
         outputs_coord = self.bbox_embed(hs).sigmoid()
+        # print(outputs_class)
         # print('DETR forward ---> ',outputs_class[-1].shape, outputs_coord[-1].shape) # torch.Size([8, 20, 2]) torch.Size([8, 20, 4])
         out = {'pred_logits': outputs_class[-1], 'pred_boxes': outputs_coord[-1]}
         if self.aux_loss:
@@ -316,11 +317,17 @@ def build(args):
     # you should pass `num_classes` to be 2 (max_obj_id + 1).
     # For more details on this, check the following discussion
     # https://github.com/facebookresearch/detr/issues/108#issuecomment-650269223
-    num_classes = 1 if args.dataset_file != 'coco' else 91
-    if args.dataset_file == "coco_panoptic":
-        # for panoptic, we just add a num_classes that is large enough to hold
-        # max_obj_id + 1, but the exact value doesn't really matter
+    
+    # Use num_classes from args if provided, otherwise fall back to defaults
+    if hasattr(args, 'num_classes') and args.num_classes is not None:
+        num_classes = args.num_classes
+    elif args.dataset_file == 'coco':
+        num_classes = 91
+    elif args.dataset_file == "coco_panoptic":
         num_classes = 250
+    else:
+        num_classes = 1
+    
     device = torch.device(args.device)
 
     backbone = build_backbone(args)

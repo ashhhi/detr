@@ -173,11 +173,11 @@ def predict(model, criterion, postprocessors, data_loader, base_ds, device, outp
         samples = samples.to(device)
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
         outputs = model(samples)
-        # print(outputs)
+        print(outputs.keys())
         idx = 2
         # print(targets)
         for i, tensor in enumerate(samples.tensors):
-            print(i, tensor)
+            # print(i, tensor)
             if i==idx:
                 img = tensor
                 break
@@ -194,14 +194,19 @@ def predict(model, criterion, postprocessors, data_loader, base_ds, device, outp
         img_cv2 = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)  # 将NumPy数组转换为OpenCV的Mat对象
         bbox = outputs['pred_boxes'].cpu().detach().numpy()[idx]
         # bbox = targets[idx]['boxes'].cpu().numpy()
+        pred_logits = outputs['pred_logits'].cpu().detach().numpy()[idx]
 
+        # Get the max value of each row
+        max_values = np.max(pred_logits, axis=1)
+        # Get the indices of the top 2 max values
+        top_indices = np.argsort(max_values)[-1:]
+        bbox = bbox[top_indices]
 
         img_height, img_width, _ = img_cv2.shape
         [h, w] = targets[idx]['size']
         [w_ratio, h_ratio] = targets[idx]['orig_size'] / targets[idx]['size']
 
         for box in bbox:
-            print(box)
             cx = int(box[0] * w)
             cy = int(box[1] * h)
             w_ = int(box[2] * w)
@@ -210,9 +215,71 @@ def predict(model, criterion, postprocessors, data_loader, base_ds, device, outp
             ymin = int(cy - h_ / 2)
             xmax = int(cx + w_ / 2)
             ymax = int(cy + h_ / 2)
-            print(xmin, ymin, xmax, ymax)
+            # print(xmin, ymin, xmax, ymax)
             cv2.rectangle(img_cv2, (xmin, ymin), (xmax, ymax), (255, 0, 0), 2)
 
 
         cv2.imshow('test', img_cv2)
         cv2.waitKey()
+
+
+@torch.no_grad()
+def save_region(model, criterion, postprocessors, data_loader, base_ds, device, output_dir):
+    model.eval()
+    criterion.eval()
+
+    model.eval()
+    criterion.eval()
+
+    for samples, targets in data_loader:
+        samples = samples.to(device)
+        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+        outputs = model(samples)
+        print(targets)
+        cord = []
+        for i, tensor in enumerate(samples.tensors):
+            # print(i, tensor)
+            img = tensor
+
+            mean = [0.485, 0.456, 0.406]
+            std = [0.229, 0.224, 0.225]
+            img = img.cpu().clone().detach().numpy()
+            img = np.transpose(img, (1, 2, 0))
+            img = img * np.array(std) + np.array(mean)
+            img = np.clip(img, 0, 1)
+
+            img = (img * 255).astype(np.uint8)
+
+            img_cv2 = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)  # 将NumPy数组转换为OpenCV的Mat对象
+            bbox = outputs['pred_boxes'].cpu().detach().numpy()[i]
+            # bbox = targets[idx]['boxes'].cpu().numpy()
+            pred_logits = outputs['pred_logits'].cpu().detach().numpy()[i]
+
+            # Get the max value of each row
+            max_values = np.max(pred_logits, axis=1)    # (N,20)
+            # Get the indices of the top 2 max values
+            top_indices = np.argsort(max_values)[-1:]
+            print(top_indices)
+            bbox = bbox[top_indices]
+
+            img_height, img_width, _ = img_cv2.shape
+            [h, w] = targets[i]['size']
+            [w_ratio, h_ratio] = targets[i]['orig_size'] / targets[i]['size']
+            for box in bbox:
+                cx = int(box[0] * w)
+                cy = int(box[1] * h)
+                w_ = int(box[2] * w)
+                h_ = int(box[3] * h)
+                xmin = int(cx - w_ / 2)
+                ymin = int(cy - h_ / 2)
+                xmax = int(cx + w_ / 2)
+                ymax = int(cy + h_ / 2)
+                cord.append([xmin, ymin, xmax, ymax])
+                # 在图像上绘制检测框
+                cv2.rectangle(img_cv2, (xmin, ymin), (xmax, ymax), (255, 0, 0), 2)
+            
+            # 保存绘制了检测框的图像
+            print(cord)
+            cv2.imwrite(f'output/{i}.jpg', img_cv2)
+        with open('output/boxes.txt', 'w', encoding='utf-8') as file:
+            file.write(str(cord))

@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader, DistributedSampler
 import datasets
 import util.misc as utils
 from datasets import build_dataset, get_coco_api_from_dataset
-from engine import evaluate, train_one_epoch, predict
+from engine import evaluate, train_one_epoch, predict, save_region
 from models import build_model
 
 
@@ -80,22 +80,27 @@ def get_args_parser():
 
     # dataset parameters
     parser.add_argument('--dataset_file', default='sf')
-    parser.add_argument('--other_dataset_path', default='/Users/shijunshen/Documents/Code/dataset/Smart_Farm_Detection.v1i.coco', type=str)
+    parser.add_argument('--num_classes', default=3, type=int,
+                        help='number of object classes in dataset. Should be max_category_id + 1 '
+                             '(e.g., if category_ids are 0,1 then num_classes=2). '
+                             'Model will add an extra "no-object" class automatically.')
+    parser.add_argument('--other_dataset_path', default='/tmp/dataset', type=str)
     parser.add_argument('--coco_path', type=str)
     parser.add_argument('--coco_panoptic_path', type=str)
     parser.add_argument('--remove_difficult', action='store_true')
 
     parser.add_argument('--output_dir', default='./output',
                         help='path where to save, empty for no saving')
-    parser.add_argument('--device', default='mps',
+    parser.add_argument('--device', default='cuda',
                         help='device to use for training / testing')
     parser.add_argument('--seed', default=42, type=int)
-    parser.add_argument('--resume', default='./output/detr-r50-e632da11.pth', help='resume from checkpoint')
+    parser.add_argument('--resume', default="", help='resume from checkpoint')
     parser.add_argument('--start_epoch', default=0, type=int, metavar='N',
                         help='start epoch')
     parser.add_argument('--eval', action='store_true')
-    parser.add_argument('--predict', default=True, action='store_true')
-    parser.add_argument('--num_workers', default=1, type=int)
+    parser.add_argument('--predict', action='store_true')
+    parser.add_argument('--save_region', action='store_true')
+    parser.add_argument('--num_workers', default=4, type=int)
 
     # distributed training parameters
     parser.add_argument('--world_size', default=1, type=int,
@@ -199,6 +204,13 @@ def main(args):
                                               data_loader_val, base_ds, device, args.output_dir)
 
         return
+
+    if args.save_region:
+        save_region(model, criterion, postprocessors,
+                data_loader_train, base_ds, device, args.output_dir)
+
+        return
+
 
     print("Start training")
     start_time = time.time()
