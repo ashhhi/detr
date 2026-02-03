@@ -80,7 +80,7 @@ def get_args_parser():
 
     # dataset parameters
     parser.add_argument('--dataset_file', default='sf')
-    parser.add_argument('--num_classes', default=3, type=int,
+    parser.add_argument('--num_classes', default=2, type=int,
                         help='number of object classes in dataset. Should be max_category_id + 1 '
                              '(e.g., if category_ids are 0,1 then num_classes=2). '
                              'Model will add an extra "no-object" class automatically.')
@@ -94,12 +94,12 @@ def get_args_parser():
     parser.add_argument('--device', default='cuda',
                         help='device to use for training / testing')
     parser.add_argument('--seed', default=42, type=int)
-    parser.add_argument('--resume', default="", help='resume from checkpoint')
+    parser.add_argument('--resume', default="/tmp/pycharm_project_375/output/checkpoint0719.pth", help='resume from checkpoint')
     parser.add_argument('--start_epoch', default=0, type=int, metavar='N',
                         help='start epoch')
     parser.add_argument('--eval', action='store_true')
     parser.add_argument('--predict', action='store_true')
-    parser.add_argument('--save_region', action='store_true')
+    parser.add_argument('--save_region', default=1, action='store_true')
     parser.add_argument('--num_workers', default=4, type=int)
 
     # distributed training parameters
@@ -182,10 +182,27 @@ def main(args):
             checkpoint = torch.hub.load_state_dict_from_url(
                 args.resume, map_location='cpu', check_hash=True)
         else:
-            checkpoint = torch.load(args.resume, map_location='cpu')
-            del checkpoint["model"]["class_embed.weight"]
-            del checkpoint["model"]["class_embed.bias"]
-            del checkpoint["model"]["query_embed.weight"]
+            checkpoint = torch.load(args.resume, map_location='cpu', weights_only=False)
+            
+            # 只在训练模式下，且类别数不匹配时，才删除分类头权重
+            # 推理模式（eval/predict/save_region）应该加载完整的训练好的模型
+            is_inference_mode = args.eval or args.predict or args.save_region
+            
+            if not is_inference_mode:
+                # 训练模式：检查类别数是否匹配
+                checkpoint_num_classes = None
+                if 'args' in checkpoint and hasattr(checkpoint['args'], 'num_classes'):
+                    checkpoint_num_classes = checkpoint['args'].num_classes
+                elif 'class_embed.weight' in checkpoint['model']:
+                    # 从权重形状推断：(num_classes+1, hidden_dim)
+                    checkpoint_num_classes = checkpoint['model']['class_embed.weight'].shape[0] - 1
+                
+                if checkpoint_num_classes is not None and checkpoint_num_classes != args.num_classes:
+                    print(f"Checkpoint has {checkpoint_num_classes} classes, current config has {args.num_classes} classes.")
+                    print("Removing class_embed layers for fine-tuning...")
+                    del checkpoint["model"]["class_embed.weight"]
+                    del checkpoint["model"]["class_embed.bias"]
+                    # 注意：不删除 query_embed，因为它与类别数无关
         model_without_ddp.load_state_dict(checkpoint['model'], strict=False)
         if not args.eval and 'optimizer' in checkpoint and 'lr_scheduler' in checkpoint and 'epoch' in checkpoint:
             optimizer.load_state_dict(checkpoint['optimizer'])
